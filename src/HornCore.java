@@ -15,7 +15,7 @@ public class HornCore
     private List<Proposition> uniquePropositions = new ArrayList<Proposition>();
     private List<Proposition> coreClauses = new ArrayList<Proposition>();
 
-    HornCore(DimacsFile dimacsFile)
+    HornCore(List<CNFImplClause> cnfClauses, int numVariables)
     {
         CONCLUSION = new HashMap<CNFImplClause, Proposition>();
         COUNT = new HashMap<CNFImplClause, Integer>();
@@ -24,8 +24,12 @@ public class HornCore
         CLAUSE = new HashMap<Hypothesis, CNFImplClause>();
         PREV = new HashMap<Hypothesis, Hypothesis>();
 
-        clauses = dimacsFile.cnfClauses;
-        for (int i=1; i <= dimacsFile.numVariables; i++)
+        clauses = cnfClauses;
+        for(CNFImplClause c : clauses)
+        {
+            System.out.println(c.toString());
+        }
+        for (int i=1; i <= numVariables; i++)
         {
             uniquePropositions.add(new Proposition(i));
         }
@@ -122,7 +126,7 @@ public class HornCore
 
         if(coreClauses.isEmpty())
         {
-            return "UNSAT";
+            return "EMPTY";
         }
 
         List<String> coreStrs = new ArrayList<String>();
@@ -135,17 +139,101 @@ public class HornCore
         return String.join(", ", coreStrs);
     }
 
+    private void parseDimacsFile()
+    {
+
+    }
 
     public static void main(String[] args)
     {
-        System.out.println("Please specify a series of horn clause files in dimacs form, spearated by spaces");
         Scanner in = new Scanner(System.in);
+
+        boolean isHeaderLine = true;
+        Proposition consequent = null;
+        List<Proposition> antecedentProps = new ArrayList<Proposition>();
+        List<CNFImplClause> fileClauses = new ArrayList<CNFImplClause>();
+        int numVariables = 0;
+        int numClauses = 0;
+        String element;
+        List<String> elements = new ArrayList<String>();
         while(in.hasNext())
         {
-            DimacsFile dimacsFile = new DimacsFile(in.next());
-            HornCore hornCore = new HornCore(dimacsFile);
-            String core = hornCore.getCore();
-            System.out.println(String.format("%s: %s", dimacsFile.fileName, core));
+            element = in.next();
+            System.out.println("element: "+element);
+
+            if(isHeaderLine)
+            {
+                if(!element.equals("p") && !element.equals("cnf"))
+                {
+                    numVariables = Integer.parseInt(element);
+                    numClauses = Integer.parseInt(in.next());
+                    isHeaderLine = false;
+                }
+                continue;
+            }
+
+            // if we've found a '0', end of clause
+            if(element.equals("0"))
+            {
+                // once we found a '0', the last element stored is the consequent
+                consequent = new Proposition(Integer.parseInt(elements.get(elements.size()-1)));
+                CNFImplClause newClause;
+                if(elements.size() == 1)
+                {
+                    newClause = new CNFImplClause(new ArrayList<Proposition>(), consequent);
+                }else
+                {
+                    newClause = new CNFImplClause(antecedentProps, consequent);
+                }
+
+                System.out.println("Adding clause: "+newClause.toString());
+                fileClauses.add(newClause);
+
+                elements = new ArrayList<String>();
+                antecedentProps = new ArrayList<Proposition>();
+                continue;
+            }
+
+            // if we've found a '0p', end of dimacs file
+            if(element.equals("0p"))
+            {
+                // once we found a '0p', the last element stored is the consequent
+                consequent = new Proposition(Integer.parseInt(elements.get(elements.size()-1)));
+
+                // create new HornCore instance found the file found so far
+                fileClauses.add(new CNFImplClause(antecedentProps, consequent));
+                HornCore hornCore = new HornCore(fileClauses, numVariables);
+                String core = hornCore.getCore();
+                System.out.println(String.format("Core = %s", core));
+                isHeaderLine = true;
+                elements = new ArrayList<String>();
+                fileClauses = new ArrayList<CNFImplClause>();
+                antecedentProps = new ArrayList<Proposition>();
+                continue;
+            }
+
+            antecedentProps.add(new Proposition(Integer.parseInt(element)));
+
+            // add the element to this list
+            elements.add(element);
         }
+
+        HornCore hornCore = new HornCore(fileClauses, numVariables);
+        String core = hornCore.getCore();
+        System.out.println(String.format("Core = %s", core));
+
+        /*
+        DimacsFile dimacsFile = new DimacsFile(in);
+        HornCore hornCore = new HornCore(dimacsFile);
+        String core = hornCore.getCore();
+        System.out.println(String.format("Core = %s", core));
+
+
+        DimacsFile dimacsFile2 = new DimacsFile(in);
+        HornCore hornCore2 = new HornCore(dimacsFile2);
+        String core2 = hornCore2.getCore();
+        System.out.println(String.format("Core = %s" , core2));
+        */
+
     }
 }

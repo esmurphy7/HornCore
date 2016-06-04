@@ -1,6 +1,6 @@
-import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
 
 /**
  * Created by Evan on 5/31/2016.
@@ -10,59 +10,73 @@ public class DimacsFile
     public int numVariables;
     public int numClauses;
 
-    public String fileName;
     public List<CNFImplClause> cnfClauses = new ArrayList<CNFImplClause>();
 
-    public DimacsFile(String fileName)
+    public DimacsFile(Scanner in)
     {
-        this.fileName = fileName;
-
-        ClassLoader classLoader = this.getClass().getClassLoader();
-
         try
         {
-            BufferedReader reader = new BufferedReader(new InputStreamReader(classLoader.getResourceAsStream(fileName)));
-            boolean headerLine = true;
-            for(String line; (line = reader.readLine()) != null; )
+            String headerLine = in.nextLine();
+
+            System.out.println("Header line: " + headerLine);
+
+            // go to the first line of the DIMACS cnf format
+            while( !headerLine.startsWith( "p" ) )
             {
-                String[] elements = line.split(" ");
-                if(headerLine)
+                headerLine = in.nextLine();
+                System.out.println("Header line: "+headerLine);
+            }
+
+            String[] headerToks = headerLine.split(" ");
+
+            numVariables = new Integer(headerToks[2]);
+            numClauses = new Integer(headerToks[3]);
+
+            Proposition consequent = null;
+            List<Proposition> antecedentProps = new ArrayList<Proposition>();
+            for(int i=0; i<numClauses; i++)
+            {
+                // store each proposition (integer) from the dimacs file into element set
+                List<Integer> elements = new ArrayList<Integer>();
+                int propVal = Integer.parseInt(in.next());
+                while(propVal != 0 && in.hasNext())
                 {
-                    numVariables = new Integer(elements[2]);
-                    numClauses = new Integer(elements[3]);
-                    headerLine = false;
-                }
-                else
-                {
-                    Proposition consequent = null;
-                    List<Proposition> antecedentProps = new ArrayList<Proposition>();
-                    for(int i=0; i<elements.length; i++)
+                    System.out.println("Adding proposition: " + propVal);
+                    elements.add(propVal);
+                    try
                     {
-                        // check if next element is end-of-line (0)
-                        if(i+1 < elements.length && Integer.parseInt(elements[i+1]) == 0)
-                        {
-                            consequent = new Proposition(Integer.parseInt(elements[i]));
-                            break;
-                        }
-                        else
-                        {
-                            antecedentProps.add(new Proposition(Integer.parseInt(elements[i])));
-                        }
+                        propVal = Integer.parseInt(in.next());
+                    }
+                    catch (NumberFormatException e)
+                    {
+
                     }
 
-                    if(consequent != null)
+                }
+
+                // create new proposition for each element
+                int j=0;
+                boolean done = false;
+                while(!done)
+                {
+                    // if its the last element, it's the consequent
+                    if(j == elements.size()-1)
                     {
-                        cnfClauses.add(new CNFImplClause(antecedentProps, consequent));
+                        consequent = new Proposition(elements.get(j));
+                        done = true;
+                        continue;
                     }
+
+                    antecedentProps.add(new Proposition(elements.get(j)));
+                    j++;
                 }
             }
 
-            reader.close();
+            if(consequent != null)
+            {
+                cnfClauses.add(new CNFImplClause(antecedentProps, consequent));
+            }
 
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
         } catch (IndexOutOfBoundsException e ) {
             e.printStackTrace();
         }
