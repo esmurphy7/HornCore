@@ -138,11 +138,9 @@ public class HornCore
 
     public static void main(String[] args)
     {
-        System.out.println("Please specify a series of horn clause files in dimacs form, spearated by spaces");
-        Scanner in = new Scanner(System.in);
-        while(in.hasNext())
+        for(String fileName : args)
         {
-            DimacsFile dimacsFile = new DimacsFile(in.next());
+            DimacsFile dimacsFile = new DimacsFile(fileName);
             HornCore hornCore = new HornCore(dimacsFile);
             String core = hornCore.getCore();
             System.out.println(String.format("%s: %s", dimacsFile.fileName, core));
